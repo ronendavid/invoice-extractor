@@ -1,23 +1,47 @@
-# Invoice Extractor
+# Invoice Extractor 📄
 
-A simple web application that extracts invoice data from PDF files and exports the data to Excel.
+A web application that extracts invoice data from PDF files and exports the data to Excel.
+
+## 🚀 Quick Start (No Installation!)
+
+### Option 1: Use Online (Recommended for Everyone)
+**Visit:** https://ronendavid.github.io/invoice-extractor/standalone.html
+
+✨ Works instantly in any browser - no installation needed!
+
+### Option 2: Download Local File
+1. Download `standalone.html` from this repository
+2. Double-click to open in your browser
+3. Done! 🎉
+
+### Option 3: Run Local Server (Advanced)
+See installation instructions below
 
 ## Features
 
-- Upload multiple PDF invoices
-- Automatically extract invoice data:
+- ✅ Upload multiple PDF invoices
+- ✅ Automatically extract invoice data:
   - Invoice Number
   - Invoice Date
   - Your Reference
-  - Description of Charges
+  - Description of Charges (with individual line items)
   - Amount
   - Due On
   - Payable Upon Receipt
   - File Name
-- View extracted data in a table
-- Export all data to Excel (XLSX format)
+- ✅ View extracted data in a table
+- ✅ Export all data to Excel (XLSX format)
+- ✅ Works offline (after initial load)
+- ✅ Privacy-first (all processing on your device)
+- 🌍 Supports English & Hebrew
 
-## Installation
+## Installation (Local Server)
+
+### Prerequisites
+- Node.js 18+
+- Ghostscript (for PDF to image conversion)
+
+### Steps
 
 1. Navigate to the project directory:
 ```bash
@@ -29,25 +53,27 @@ cd invoice-extractor
 npm install
 ```
 
-## Usage
-
-1. Start the server:
+3. Start the server:
 ```bash
 npm start
 ```
 
-2. Open your browser and go to:
+4. Open your browser:
 ```
 http://localhost:3000
 ```
 
-3. Click "Choose PDF Files" to select one or more PDF invoices
+## Usage
 
-4. The app will automatically extract data from each PDF
+### Web Version
+1. Click "Choose PDF Files" to select one or more PDF invoices
+2. The app will automatically extract data from each PDF
+3. Review the extracted data in the table
+4. Click "Export to Excel" to download all data as an Excel file
 
-5. Review the extracted data in the table
-
-6. Click "Export to Excel" to download all data as an Excel file
+### Standalone HTML
+- Same as above, but no server needed!
+- Download the `standalone.html` file and open it in any browser
 
 ## How It Works
 
