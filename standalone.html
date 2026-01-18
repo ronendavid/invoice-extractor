@@ -374,6 +374,8 @@
 
                 try {
                     updateFileStatus(file.name, 'Processing...', 'loading');
+                    updateProgressBar(processedFiles, totalFiles);
+                    await new Promise(r => setTimeout(r, 50));
 
                     // Convert PDF to images and extract text
                     const startTime = performance.now();
@@ -398,6 +400,9 @@
                     updateFileStatus(file.name, `Error: ${error.message}`, 'error');
                     showMessage(`Failed to process ${file.name}: ${error.message}`, 'error');
                 }
+                processedFiles++;
+                updateProgressBar(processedFiles, totalFiles);
+                await new Promise(r => setTimeout(r, 50));
             }
 
             if (extractedData.length > 0) {
@@ -510,45 +515,39 @@
             // Debug: log raw OCR text
             console.log('Raw OCR Text for parsing:', text);
 
-            // Invoice Number - Try multiple patterns
-            let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d{4,})/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]*\|?\s*(\d{4,})/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/inv\.?\s*[:\s]*(\d{4,})/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]{4,})/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s+number[:\s]+(\d{4,})/i);
-
-            // Pattern: Look for numbers that appear near "invoice" keyword (unlimited length)
-            if (!invoiceNoMatch) {
-                let invoiceSection = text.match(/invoice[\s\S]{0,200}(\d{4,})/i);
-                if (invoiceSection) invoiceNoMatch = invoiceSection;
-            }
-
-            // Pattern: Numbers after PO BOX in address (as fallback, unlimited length)
-            if (!invoiceNoMatch) {
-                let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{4,})/i);
-                if (numberAfterPattern) invoiceNoMatch = numberAfterPattern;
-            }
-
-            // Pattern: 5-6 digit numbers that appear BEFORE a date (common invoice number format: XXXXXX DATE)
-            // This should come before the generic large numbers pattern to avoid matching dates
-
-            if (!invoiceNoMatch) {
-                // Find all matches of 5+ digits followed by a date
-                let allMatches = [...text.matchAll(/(\d{5,})\s+\d{1,2}\/\d{1,2}\/\d{4}/g)];
-                // Filter out matches where the number is a year (e.g. 2026)
-                let filtered = allMatches.filter(m => m[1] && !/^20\d{2}$/.test(m[1]));
-                if (filtered.length > 0) {
-                    invoiceNoMatch = filtered[0];
+            // Invoice Number Extraction - Prefer 5+ digit/alphanumeric before date, filter out years
+            const lines = text.split(/\r?\n/);
+            let candidates = [];
+            for (let line of lines) {
+                // Look for patterns like: <number> <date> (allow text before number)
+                let match = line.match(/\b([A-Z]?\d{5,}[A-Z]?)\b.*?\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/);
+                if (match) {
+                    // Filter out 4-digit years
+                    if (!(match[1].length === 4 && /^20\d{2}$/.test(match[1]))) {
+                        candidates.push(match[1]);
+                    }
                 }
             }
-
-            // Pattern: 5+ digit numbers as last resort (avoid matching 4-digit years)
-            if (!invoiceNoMatch) {
-                let largeNumbers = text.match(/(\d{5,})/);
-                if (largeNumbers) invoiceNoMatch = largeNumbers;
+            console.log('Candidates for invoice number:', candidates);
+            if (candidates.length > 0) {
+                // Prefer the longest candidate
+                candidates.sort((a, b) => b.length - a.length);
+                data.invoiceNo = candidates[0];
+            } else {
+                // Fallback: all 5+ digit/alphanumeric numbers in text
+                const allMatches = text.match(/[A-Z]?\d{5,}[A-Z]?/g);
+                if (allMatches) {
+                    const filtered = allMatches.filter(num => !(num.length === 4 && /^20\d{2}$/.test(num)));
+                    if (filtered.length > 0) {
+                        filtered.sort((a, b) => b.length - a.length);
+                        data.invoiceNo = filtered[0];
+                    } else {
+                        data.invoiceNo = '';
+                    }
+                } else {
+                    data.invoiceNo = '';
+                }
             }
-
-            data.invoiceNo = invoiceNoMatch ? invoiceNoMatch[1].trim() : '';
             console.log('Invoice No extracted:', data.invoiceNo);
 
             // Invoice Date
@@ -631,6 +630,22 @@
                 } else {
                     console.log('No charge items section found');
                 }
+            }
+
+            // Fallback Pattern 3: Look for amounts near keywords like duty, fee, etc. (for garbled OCR)
+            if (chargeItems.length === 0) {
+                const keywords = ['duty', 'fee', 'charge', 'amount', 'total', 'customs'];
+                keywords.forEach(keyword => {
+                    const regex = new RegExp(keyword + '[\\s\\S]*?([\\d,]+\\.\\d{2})', 'gi');
+                    let match;
+                    while ((match = regex.exec(text)) !== null) {
+                        chargeItems.push({
+                            description: keyword.toUpperCase(),
+                            amount: match[1]
+                        });
+                    }
+                });
+                console.log('Charge items from keywords:', chargeItems);
             }
 
             data.chargeItems = chargeItems;
