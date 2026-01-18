@@ -266,6 +266,20 @@
             <tbody id="tableBody"></tbody>
         </table>
 
+        <div id="progressContainer" style="display: none; margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span id="progressText" style="font-weight: bold; color: #333;">Processing: 0%</span>
+                <span id="progressStatus" style="color: #666; font-size: 14px;">0 / 0 files</span>
+            </div>
+            <div
+                style="width: 100%; height: 30px; background: #f0f0f0; border-radius: 5px; overflow: hidden; border: 1px solid #ddd;">
+                <div id="progressBar"
+                    style="height: 100%; width: 0%; background: linear-gradient(90deg, #667eea 0%, #4caf50 100%); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">
+                    0%
+                </div>
+            </div>
+        </div>
+
         <div class="action-buttons">
             <button class="btn btn-export" id="exportBtn" disabled>Export to Excel</button>
             <button class="btn btn-clear" id="clearBtn" disabled>Clear All</button>
@@ -297,10 +311,32 @@
         exportBtn.addEventListener('click', exportToExcel);
         clearBtn.addEventListener('click', clearAll);
 
+        let totalFiles = 0;
+        let processedFiles = 0;
+
         function showMessage(text, type) {
             messageDiv.textContent = text;
             messageDiv.className = `message ${type}`;
             messageDiv.style.display = 'block';
+        }
+
+        function updateProgressBar(current, total) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressStatus = document.getElementById('progressStatus');
+
+            if (total === 0) {
+                progressContainer.style.display = 'none';
+                return;
+            }
+
+            progressContainer.style.display = 'block';
+            const percent = Math.round((current / total) * 100);
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+            progressText.textContent = `Processing: ${percent}%`;
+            progressStatus.textContent = `${current} / ${total} files`;
         }
 
         function createFileItem(fileName) {
@@ -312,9 +348,7 @@
             `;
             div.dataset.fileName = fileName;
             return div;
-        }
-
-        function updateFileStatus(fileName, status, statusClass) {
+        } function updateFileStatus(fileName, status, statusClass) {
             const fileItem = document.querySelector(`[data-file-name="${fileName}"]`);
             if (fileItem) {
                 const statusSpan = fileItem.querySelector('.file-status');
@@ -330,6 +364,10 @@
             fileList.innerHTML = '';
             extractedData = [];
             maxChargeItems = 0;
+            totalFiles = files.length;
+            processedFiles = 0;
+
+            updateProgressBar(0, totalFiles);
 
             for (let file of files) {
                 const fileItem = createFileItem(file.name);
@@ -480,21 +518,21 @@
             if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]+)/i);
             if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s+number[:\s]+(\d+)/i);
 
-            // Pattern: Look for 6-8 digit numbers that appear near "invoice" keyword
+            // Pattern: Look for numbers that appear near "invoice" keyword (unlimited length)
             if (!invoiceNoMatch) {
-                let invoiceSection = text.match(/invoice[\s\S]{0,200}(\d{6,8})/i);
+                let invoiceSection = text.match(/invoice[\s\S]{0,200}(\d+)/i);
                 if (invoiceSection) invoiceNoMatch = invoiceSection;
             }
 
-            // Pattern: Numbers after PO BOX in address (as fallback)
+            // Pattern: Numbers after PO BOX in address (as fallback, unlimited length)
             if (!invoiceNoMatch) {
-                let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{6,})/i);
+                let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d+)/i);
                 if (numberAfterPattern) invoiceNoMatch = numberAfterPattern;
             }
 
-            // Pattern: Large numbers that appear to be invoice numbers (6+ digits)
+            // Pattern: Large numbers that appear to be invoice numbers (unlimited length)
             if (!invoiceNoMatch) {
-                let largeNumbers = text.match(/(\d{6,8})/);
+                let largeNumbers = text.match(/(\d{4,})/);
                 if (largeNumbers) invoiceNoMatch = largeNumbers;
             }
 
