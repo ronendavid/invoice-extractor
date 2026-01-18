@@ -515,39 +515,40 @@
             // Debug: log raw OCR text
             console.log('Raw OCR Text for parsing:', text);
 
-            // Invoice Number Extraction - Prefer 5+ digit/alphanumeric before date, filter out years
-            const lines = text.split(/\r?\n/);
-            let candidates = [];
-            for (let line of lines) {
-                // Look for patterns like: <number> <date> (allow text before number)
-                let match = line.match(/\b([A-Z]?\d{5,}[A-Z]?)\b.*?\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/);
-                if (match) {
-                    // Filter out 4-digit years
-                    if (!(match[1].length === 4 && /^20\d{2}$/.test(match[1]))) {
-                        candidates.push(match[1]);
+            // Invoice Number Extraction - Prefer number after 'Invoice No', 'Invoice Number', or 'חשבונית' label
+            let invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)?[:\s\-]*([A-Z]?\d{5,}[A-Z]?)/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([A-Z]?\d{5,}[A-Z]?)/i);
+            if (!invoiceNoMatch) {
+                // Fallback: Prefer 5+ digit/alphanumeric before date, filter out years
+                const lines = text.split(/\r?\n/);
+                let candidates = [];
+                for (let line of lines) {
+                    let match = line.match(/\b([A-Z]?\d{5,}[A-Z]?)\b.*?\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/);
+                    if (match) {
+                        if (!(match[1].length === 4 && /^20\d{2}$/.test(match[1]))) {
+                            candidates.push(match[1]);
+                        }
                     }
                 }
+                console.log('Candidates for invoice number:', candidates);
+                if (candidates.length > 0) {
+                    // Prefer the shortest candidate (to avoid long Entry No)
+                    candidates.sort((a, b) => a.length - b.length);
+                    invoiceNoMatch = [null, candidates[0]];
+                }
             }
-            console.log('Candidates for invoice number:', candidates);
-            if (candidates.length > 0) {
-                // Prefer the longest candidate
-                candidates.sort((a, b) => b.length - a.length);
-                data.invoiceNo = candidates[0];
-            } else {
+            if (!invoiceNoMatch) {
                 // Fallback: all 5+ digit/alphanumeric numbers in text
                 const allMatches = text.match(/[A-Z]?\d{5,}[A-Z]?/g);
                 if (allMatches) {
                     const filtered = allMatches.filter(num => !(num.length === 4 && /^20\d{2}$/.test(num)));
                     if (filtered.length > 0) {
-                        filtered.sort((a, b) => b.length - a.length);
-                        data.invoiceNo = filtered[0];
-                    } else {
-                        data.invoiceNo = '';
+                        filtered.sort((a, b) => a.length - b.length);
+                        invoiceNoMatch = [null, filtered[0]];
                     }
-                } else {
-                    data.invoiceNo = '';
                 }
             }
+            data.invoiceNo = invoiceNoMatch ? invoiceNoMatch[1] : '';
             console.log('Invoice No extracted:', data.invoiceNo);
 
             // Invoice Date
