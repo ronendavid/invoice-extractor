@@ -473,6 +473,9 @@
 
         function parseInvoiceData(text) {
             const data = {};
+            
+            // Debug: log raw OCR text
+            console.log('Raw OCR Text for parsing:', text);
 
             // Invoice Number
             let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d+)/i);
@@ -501,30 +504,54 @@
             if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference)[:\s]+([^\n]+)/i);
             data.yourReference = refMatch ? refMatch[1].trim().slice(0, 50) : '';
 
-            // Charge Items
+            // Charge Items - Try multiple patterns
             let chargeItems = [];
+            
+            // Pattern 1: "description of charges" followed by items
             let descMatch = text.match(/description\s+of\s+charges([\s\S]*?)(?:due\s+on|payable|DUE\s+ON|PAYABLE|$)/i);
+            
+            // Pattern 2: If pattern 1 fails, try looking for lines with amounts
+            if (!descMatch || !descMatch[1] || descMatch[1].trim().length < 10) {
+                // Look for description section more flexibly
+                descMatch = text.match(/(?:description|charges|items?|services?)([\s\S]*?)(?:due|payment|total|amount|payable|DUE|PAYMENT|TOTAL|$)/i);
+            }
+            
             if (descMatch) {
+                console.log('Charge items section found:', descMatch[1]);
                 let lines = descMatch[1]
                     .split('\n')
                     .map(line => line.trim())
                     .filter(line => line.length > 0 && !line.match(/^amount$/i) && !line.match(/^\|/));
 
                 lines.forEach(line => {
+                    // Pattern 1: "description $amount"
                     let match = line.match(/^(.+?)\s+([\d,]+\.\d{2})$/);
+                    
+                    // Pattern 2: "description | $amount" (with pipe separator)
+                    if (!match) match = line.match(/^(.+?)\s*\|\s*([\d,]+\.\d{2})$/);
+                    
+                    // Pattern 3: Any line with amount pattern
+                    if (!match) match = line.match(/(.+?)\s+([\d,]+\.\d{2})$/);
+                    
                     if (match) {
                         chargeItems.push({
                             description: match[1].trim(),
                             amount: match[2].trim()
                         });
+                        console.log('Found charge item:', match[1], match[2]);
                     }
                 });
+            } else {
+                console.log('No charge items section found');
             }
 
             data.chargeItems = chargeItems;
             data.description = chargeItems.length > 0
                 ? chargeItems.map(item => `${item.description}: ${item.amount}`).join('; ').slice(0, 300)
                 : '';
+            
+            console.log('Parsed description:', data.description);
+            console.log('Charge items count:', chargeItems.length);
 
             // Amount
             let amountMatch = text.match(/\$\s*([\d,]+\.\d{2})(?=\s*$|\s*\n\s*$)/m);
