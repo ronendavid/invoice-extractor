@@ -499,8 +499,13 @@
 
             // Your Reference
             let refMatch = text.match(/P0O(\d+)/i);
-            if (!refMatch) refMatch = text.match(/PO\s*[:\s]*(\d+)/i);
-            if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference)[:\s]+([^\n]+)/i);
+            if (!refMatch) refMatch = text.match(/PO\s*(?:BOX)?\s*[:\s]*(\d+)/i);
+            if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference|entry\s+no\.?)[:\s]+([^\n]+)/i);
+            if (!refMatch) {
+                // Try to find first number after "PO"
+                let poMatch = text.match(/PO\s+(\d+)/i);
+                if (poMatch) refMatch = poMatch;
+            }
             data.yourReference = refMatch ? refMatch[1].trim().slice(0, 50) : '';
 
             // Charge Items - Try multiple patterns
@@ -576,7 +581,7 @@
             }
 
             data.chargeItems = chargeItems;
-            
+
             console.log('Charge items count:', chargeItems.length);
 
             // Amount
