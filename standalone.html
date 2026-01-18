@@ -258,6 +258,7 @@
                     <th>Invoice No.</th>
                     <th>Invoice Date</th>
                     <th>Your Reference</th>
+                    <th>Description of Charges</th>
                     <th>Total Amount</th>
                     <th>Due On</th>
                     <th>Payable Upon Receipt</th>
@@ -421,7 +422,7 @@
                 if (!tesseractWorker) {
                     console.log('Initializing Tesseract worker...');
                     showMessage('Initializing OCR engine (this may take a minute on first use)...', 'info');
-                    
+
                     try {
                         tesseractWorker = await Tesseract.createWorker({
                             logger: m => console.log('Tesseract:', m)
@@ -430,7 +431,7 @@
                         await tesseractWorker.loadLanguage('eng');
                         await tesseractWorker.loadLanguage('heb');
                         await tesseractWorker.initialize('eng+heb');
-                        
+
                         workerReady = true;
                         console.log('Tesseract worker ready');
                     } catch (initError) {
@@ -442,14 +443,14 @@
                 }
 
                 console.log('Recognizing image...');
-                
+
                 // Create an image object to ensure proper loading
                 const img = new Image();
                 img.onload = async () => {
                     console.log('Image loaded, starting recognition...');
                 };
                 img.src = imageDataUrl;
-                
+
                 const result = await tesseractWorker.recognize(imageDataUrl);
                 console.log('OCR completed, confidence:', result.data.confidence);
 
@@ -577,6 +578,7 @@
                     <td>${invoice.invoiceNo || ''}</td>
                     <td>${invoice.invoiceDate || ''}</td>
                     <td>${invoice.yourReference || ''}</td>
+                    <td>${invoice.description || ''}</td>
                     <td>${invoice.amount || ''}</td>
                     <td>${invoice.dueOn || ''}</td>
                     <td>${invoice.payableUponReceipt || ''}</td>
@@ -609,7 +611,7 @@
             const worksheet = XLSX.utils.json_to_sheet([]);
 
             // Build headers
-            const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Your Reference', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
+            const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Your Reference', 'Description of Charges', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
             for (let i = 0; i < maxChargeItems; i++) {
                 headers.push(`Charge ${i + 1} Description`);
                 headers.push(`Charge ${i + 1} Amount`);
@@ -623,6 +625,7 @@
                     invoice.invoiceNo || '',
                     invoice.invoiceDate || '',
                     invoice.yourReference || '',
+                    invoice.description || '',
                     invoice.amount || '',
                     invoice.dueOn || '',
                     invoice.payableUponReceipt || ''
