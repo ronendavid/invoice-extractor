@@ -150,11 +150,7 @@ function parseInvoiceData(text) {
     }
     data.invoiceDate = dateMatch ? dateMatch[1].trim() : '';
 
-    // Your Reference - look for PO number or reference
-    let refMatch = text.match(/P0O(\d+)/i); // Look for "P0O1254" pattern (OCR errors from "PO")
-    if (!refMatch) refMatch = text.match(/PO\s*[:\s]*(\d+)/i);
-    if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference)[:\s]+([^\n]+)/i);
-    data.yourReference = refMatch ? refMatch[1].trim().slice(0, 50) : '';
+
 
     // Description of Charges - extract line items separately with amounts
     let chargeItems = [];
@@ -269,7 +265,7 @@ app.post('/api/export', express.json(), async (req, res) => {
         });
 
         // Build headers dynamically based on charge items
-        const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Your Reference', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
+        const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
 
         // Add columns for each charge item (description and amount)
         for (let i = 0; i < maxChargeItems; i++) {
@@ -290,7 +286,6 @@ app.post('/api/export', express.json(), async (req, res) => {
                 invoice.fileName || '',
                 invoice.invoiceNo || '',
                 invoice.invoiceDate || '',
-                invoice.yourReference || '',
                 invoice.amount || '',
                 invoice.dueOn || '',
                 invoice.payableUponReceipt || ''
