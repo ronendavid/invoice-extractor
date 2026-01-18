@@ -339,7 +339,10 @@
                     updateFileStatus(file.name, 'Processing...', 'loading');
 
                     // Convert PDF to images and extract text
+                    const startTime = performance.now();
                     const text = await extractTextFromPDF(file);
+                    const endTime = performance.now();
+                    console.log(`Extraction time: ${((endTime - startTime) / 1000).toFixed(2)}s`);
 
                     // Parse invoice data
                     const invoiceData = parseInvoiceData(text);
@@ -394,7 +397,8 @@
                 if (fullText.trim().length < 50) {
                     console.log('Text extraction too short, attempting OCR...');
                     const canvas = document.createElement('canvas');
-                    const viewport = page.getViewport({ scale: 2 });
+                    // Use lower scale (1.5 instead of 2) for faster processing
+                    const viewport = page.getViewport({ scale: 1.5 });
                     canvas.width = viewport.width;
                     canvas.height = viewport.height;
 
@@ -402,7 +406,7 @@
                     await page.render({ canvasContext: ctx, viewport }).promise;
 
                     // OCR using Tesseract
-                    const ocrText = await ocrImage(canvas.toDataURL());
+                    const ocrText = await ocrImage(canvas.toDataURL('image/jpeg', 0.85));
                     fullText = ocrText;
                 }
 
@@ -442,13 +446,6 @@
                 }
 
                 console.log('Recognizing image...');
-
-                // Create an image object to ensure proper loading
-                const img = new Image();
-                img.onload = async () => {
-                    console.log('Image loaded, starting recognition...');
-                };
-                img.src = imageDataUrl;
 
                 const result = await tesseractWorker.recognize(imageDataUrl);
                 console.log('OCR completed, confidence:', result.data.confidence);
