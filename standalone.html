@@ -258,7 +258,6 @@
                     <th>Invoice No.</th>
                     <th>Invoice Date</th>
                     <th>Your Reference</th>
-                    <th>Description of Charges</th>
                     <th>Total Amount</th>
                     <th>Due On</th>
                     <th>Payable Upon Receipt</th>
@@ -510,21 +509,21 @@
             // Pattern 1: Look for DUTY/FEES and similar fee lines
             // These typically have format: "DESCRIPTION     AMOUNT" or "DESCRIPTION    AMOUNT"
             let feeSection = text.match(/DUTY[\s\S]*?(?=DUE\s+ON:|$)/i);
-            
+
             if (feeSection) {
                 console.log('Fee section found:', feeSection[0]);
                 // Split by lines and look for patterns like "DESCRIPTION    AMOUNT"
                 let lines = feeSection[0].split('\n').map(line => line.trim()).filter(l => l.length > 0);
-                
+
                 lines.forEach(line => {
                     // Match lines that have description followed by amount (multiple spaces between)
                     // e.g., "DUTY/FEES SUBJ TO LIQ 3053.44" or "ARRANGING ENTRY 132.50"
                     let match = line.match(/^([A-Z\s\/]+)\s+([\d,]+\.\d{2})$/);
-                    
+
                     if (match) {
                         let desc = match[1].trim();
                         let amount = match[2].trim();
-                        
+
                         // Avoid capturing "DUE ON:" or similar keywords
                         if (!desc.match(/^(DUE|PAYABLE|TOTAL|AMOUNT|AWB|BL|ARRIVED)/i)) {
                             chargeItems.push({
@@ -536,7 +535,7 @@
                     }
                 });
             }
-            
+
             // Fallback Pattern 2: "description of charges" followed by items (for standard invoices)
             if (chargeItems.length === 0) {
                 let descMatch = text.match(/description\s+of\s+charges([\s\S]*?)(?:due\s+on|payable|DUE\s+ON|PAYABLE|$)/i);
@@ -577,11 +576,7 @@
             }
 
             data.chargeItems = chargeItems;
-            data.description = chargeItems.length > 0
-                ? chargeItems.map(item => `${item.description}: ${item.amount}`).join('; ').slice(0, 300)
-                : '';
-
-            console.log('Parsed description:', data.description);
+            
             console.log('Charge items count:', chargeItems.length);
 
             // Amount
@@ -636,7 +631,6 @@
                     <td>${invoice.invoiceNo || ''}</td>
                     <td>${invoice.invoiceDate || ''}</td>
                     <td>${invoice.yourReference || ''}</td>
-                    <td>${invoice.description || ''}</td>
                     <td>${invoice.amount || ''}</td>
                     <td>${invoice.dueOn || ''}</td>
                     <td>${invoice.payableUponReceipt || ''}</td>
@@ -669,7 +663,7 @@
             const worksheet = XLSX.utils.json_to_sheet([]);
 
             // Build headers
-            const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Your Reference', 'Description of Charges', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
+            const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Your Reference', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
             for (let i = 0; i < maxChargeItems; i++) {
                 headers.push(`Charge ${i + 1} Description`);
                 headers.push(`Charge ${i + 1} Amount`);
@@ -683,7 +677,6 @@
                     invoice.invoiceNo || '',
                     invoice.invoiceDate || '',
                     invoice.yourReference || '',
-                    invoice.description || '',
                     invoice.amount || '',
                     invoice.dueOn || '',
                     invoice.payableUponReceipt || ''
