@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Extractor - Standalone</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 1400px;
+            width: 100%;
+            padding: 40px;
+            overflow-x: auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .upload-section {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            border: none;
+            transition: background 0.3s;
+        }
+
+        .upload-btn:hover {
+            background: #764ba2;
+        }
+
+        .upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .file-list {
+            margin-top: 20px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .file-item {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-name {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .file-status {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .file-status.loading {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .file-status.success {
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .file-status.error {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .data-table {
+            width: 100%;
+            margin-top: 30px;
+            border-collapse: collapse;
+            background: #f9f9f9;
+            display: block;
+            overflow-x: auto;
+        }
+
+        .data-table thead {
+            background: #667eea;
+            color: white;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: right;
+            border: 1px solid #ddd;
+            min-width: 150px;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f0f0f0;
+        }
+
+        .data-table th {
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .action-buttons {
+            margin-top: 20px;
+            text-align: center;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            border: none;
+            transition: background 0.3s;
+        }
+
+        .btn-export {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-export:hover {
+            background: #45a049;
+        }
+
+        .btn-export:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-clear {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #da190b;
+        }
+
+        .btn-clear:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📄 Invoice Extractor - Standalone</h1>
+        
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <label for="fileInput" class="upload-btn">Choose PDF Files</label>
+                <input type="file" id="fileInput" accept=".pdf" multiple>
+            </div>
+        </div>
+
+        <div id="fileList" class="file-list"></div>
+        <div id="message" class="message" style="display: none;"></div>
+
+        <table class="data-table" id="dataTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>File Name</th>
+                    <th>Invoice No.</th>
+                    <th>Invoice Date</th>
+                    <th>Your Reference</th>
+                    <th>Total Amount</th>
+                    <th>Due On</th>
+                    <th>Payable Upon Receipt</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+
+        <div class="action-buttons">
+            <button class="btn btn-export" id="exportBtn" disabled>Export to Excel</button>
+            <button class="btn btn-clear" id="clearBtn" disabled>Clear All</button>
+        </div>
+    </div>
+
+    <script>
+        // Configure PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const dataTable = document.getElementById('dataTable');
+        const tableBody = document.getElementById('tableBody');
+        const exportBtn = document.getElementById('exportBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const messageDiv = document.getElementById('message');
+
+        let extractedData = [];
+        let maxChargeItems = 0;
+
+        document.querySelector('label[for="fileInput"]').addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+        exportBtn.addEventListener('click', exportToExcel);
+        clearBtn.addEventListener('click', clearAll);
+
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+        }
+
+        function createFileItem(fileName) {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `
+                <span class="file-name">${fileName}</span>
+                <span class="file-status">Queued</span>
+            `;
+            div.dataset.fileName = fileName;
+            return div;
+        }
+
+        function updateFileStatus(fileName, status, statusClass) {
+            const fileItem = document.querySelector(`[data-file-name="${fileName}"]`);
+            if (fileItem) {
+                const statusSpan = fileItem.querySelector('.file-status');
+                statusSpan.textContent = status;
+                statusSpan.className = `file-status ${statusClass}`;
+            }
+        }
+
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            fileList.innerHTML = '';
+            extractedData = [];
+            maxChargeItems = 0;
+
+            for (let file of files) {
+                const fileItem = createFileItem(file.name);
+                fileList.appendChild(fileItem);
+
+                try {
+                    updateFileStatus(file.name, 'Processing...', 'loading');
+
+                    // Convert PDF to images and extract text
+                    const text = await extractTextFromPDF(file);
+                    
+                    // Parse invoice data
+                    const invoiceData = parseInvoiceData(text);
+                    invoiceData.fileName = file.name;
+
+                    extractedData.push(invoiceData);
+                    
+                    // Update max charge items
+                    if (invoiceData.chargeItems && invoiceData.chargeItems.length > maxChargeItems) {
+                        maxChargeItems = invoiceData.chargeItems.length;
+                    }
+
+                    updateFileStatus(file.name, 'Extracted ✓', 'success');
+                } catch (error) {
+                    console.error('Error processing file:', error);
+                    updateFileStatus(file.name, `Error: ${error.message}`, 'error');
+                    showMessage(`Failed to process ${file.name}: ${error.message}`, 'error');
+                }
+            }
+
+            if (extractedData.length > 0) {
+                displayTable();
+                exportBtn.disabled = false;
+                clearBtn.disabled = false;
+                showMessage(`Successfully extracted data from ${extractedData.length} file(s)`, 'success');
+            }
+
+            fileInput.value = '';
+        }
+
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+            let fullText = '';
+
+            // Process first page
+            const page = await pdf.getPage(1);
+            const textContent = await page.getTextContent();
+            
+            // Extract text
+            textContent.items.forEach(item => {
+                fullText += (item.str || '') + ' ';
+            });
+
+            // If text is too short, try OCR on first page image
+            if (fullText.trim().length < 50) {
+                console.log('Text extraction too short, attempting OCR...');
+                const canvas = document.createElement('canvas');
+                const viewport = page.getViewport({ scale: 2 });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport }).promise;
+                
+                // OCR using Tesseract
+                const ocrText = await ocrImage(canvas.toDataURL());
+                fullText = ocrText;
+            }
+
+            return fullText;
+        }
+
+        async function ocrImage(imageData) {
+            console.log('Starting OCR...');
+            const worker = await Tesseract.createWorker(['eng', 'heb']);
+            
+            try {
+                const result = await worker.recognize(imageData);
+                return result.data.text;
+            } finally {
+                await worker.terminate();
+            }
+        }
+
+        function parseInvoiceData(text) {
+            const data = {};
+
+            // Invoice Number
+            let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d+)/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]+(\d+)/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/inv\.?\s*[:\s]*(\d+)/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]+)/i);
+            if (!invoiceNoMatch) {
+                let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{6,})/i);
+                if (numberAfterPattern) invoiceNoMatch = numberAfterPattern;
+            }
+            data.invoiceNo = invoiceNoMatch ? invoiceNoMatch[1].trim() : '';
+
+            // Invoice Date
+            let dateMatch = text.match(/invoiceDate\s*\|\s*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4})/i);
+            if (!dateMatch) dateMatch = text.match(/(?:invoice\s+)?date[:\s]+(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4})/i);
+            if (!dateMatch) dateMatch = text.match(/תאריך[:\s]+(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4})/i);
+            if (!dateMatch) {
+                let allDates = text.match(/\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4}/g);
+                if (allDates && allDates.length > 0) dateMatch = [null, allDates[0]];
+            }
+            data.invoiceDate = dateMatch ? dateMatch[1].trim() : '';
+
+            // Your Reference
+            let refMatch = text.match(/P0O(\d+)/i);
+            if (!refMatch) refMatch = text.match(/PO\s*[:\s]*(\d+)/i);
+            if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference)[:\s]+([^\n]+)/i);
+            data.yourReference = refMatch ? refMatch[1].trim().slice(0, 50) : '';
+
+            // Charge Items
+            let chargeItems = [];
+            let descMatch = text.match(/description\s+of\s+charges([\s\S]*?)(?:due\s+on|payable|DUE\s+ON|PAYABLE|$)/i);
+            if (descMatch) {
+                let lines = descMatch[1]
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0 && !line.match(/^amount$/i) && !line.match(/^\|/));
+
+                lines.forEach(line => {
+                    let match = line.match(/^(.+?)\s+([\d,]+\.\d{2})$/);
+                    if (match) {
+                        chargeItems.push({
+                            description: match[1].trim(),
+                            amount: match[2].trim()
+                        });
+                    }
+                });
+            }
+
+            data.chargeItems = chargeItems;
+            data.description = chargeItems.map(item => `${item.description}: ${item.amount}`).join('; ').slice(0, 300);
+
+            // Amount
+            let amountMatch = text.match(/\$\s*([\d,]+\.\d{2})(?=\s*$|\s*\n\s*$)/m);
+            if (!amountMatch) amountMatch = text.match(/total\s+due[:\s]*\$?\s*([\d,]+\.\d{2})/i);
+            if (!amountMatch) amountMatch = text.match(/payable.*?\$\s*([\d,]+\.\d{2})/i);
+            if (!amountMatch) amountMatch = text.match(/([\d,]+\.\d{2})\s*$/m);
+            data.amount = amountMatch ? amountMatch[1].trim() : '';
+
+            // Due On
+            let dueMatch = text.match(/due\s+on[:\s]+(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4})/i);
+            if (!dueMatch) dueMatch = text.match(/payment\s+due[:\s]+(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4})/i);
+            if (!dueMatch) dueMatch = text.match(/תאריך\s+תשלום[:\s]+(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4})/i);
+            if (!dueMatch && /\d{1,2}\/\d{1,2}/.test(text)) {
+                let dates = text.match(/\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4}/g);
+                if (dates && dates.length > 1) {
+                    dueMatch = [null, dates[dates.length - 1]];
+                }
+            }
+            data.dueOn = dueMatch ? dueMatch[1].trim() : '';
+
+            // Payable Upon Receipt
+            data.payableUponReceipt = /payable\s+upon\s+receipt|payment\s+due\s+upon\s+receipt|מיד עם קבלה/i.test(text) ? 'Yes' : 'No';
+
+            return data;
+        }
+
+        function displayTable() {
+            tableBody.innerHTML = '';
+            
+            // Update table headers dynamically
+            const thead = dataTable.querySelector('thead tr');
+            const existingChargeHeaders = thead.querySelectorAll('[data-charge]');
+            existingChargeHeaders.forEach(h => h.remove());
+            
+            for (let i = 0; i < maxChargeItems; i++) {
+                const thDesc = document.createElement('th');
+                thDesc.textContent = `Charge ${i + 1} Description`;
+                thDesc.setAttribute('data-charge', 'true');
+                thead.appendChild(thDesc);
+                
+                const thAmount = document.createElement('th');
+                thAmount.textContent = `Charge ${i + 1} Amount`;
+                thAmount.setAttribute('data-charge', 'true');
+                thead.appendChild(thAmount);
+            }
+            
+            extractedData.forEach(invoice => {
+                const row = document.createElement('tr');
+                let rowHTML = `
+                    <td>${invoice.fileName || ''}</td>
+                    <td>${invoice.invoiceNo || ''}</td>
+                    <td>${invoice.invoiceDate || ''}</td>
+                    <td>${invoice.yourReference || ''}</td>
+                    <td>${invoice.amount || ''}</td>
+                    <td>${invoice.dueOn || ''}</td>
+                    <td>${invoice.payableUponReceipt || ''}</td>
+                `;
+                
+                if (invoice.chargeItems) {
+                    invoice.chargeItems.forEach(item => {
+                        rowHTML += `<td>${item.description || ''}</td>`;
+                        rowHTML += `<td>${item.amount || ''}</td>`;
+                    });
+                }
+                
+                const chargeItemCount = invoice.chargeItems ? invoice.chargeItems.length : 0;
+                for (let i = chargeItemCount; i < maxChargeItems; i++) {
+                    rowHTML += '<td></td>';
+                    rowHTML += '<td></td>';
+                }
+                
+                row.innerHTML = rowHTML;
+                tableBody.appendChild(row);
+            });
+            dataTable.style.display = 'table';
+        }
+
+        function exportToExcel() {
+            exportBtn.disabled = true;
+            showMessage('Generating Excel file...', 'info');
+
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.json_to_sheet([]);
+
+            // Build headers
+            const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Your Reference', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
+            for (let i = 0; i < maxChargeItems; i++) {
+                headers.push(`Charge ${i + 1} Description`);
+                headers.push(`Charge ${i + 1} Amount`);
+            }
+
+            // Build data
+            const data = [];
+            extractedData.forEach(invoice => {
+                const row = [
+                    invoice.fileName || '',
+                    invoice.invoiceNo || '',
+                    invoice.invoiceDate || '',
+                    invoice.yourReference || '',
+                    invoice.amount || '',
+                    invoice.dueOn || '',
+                    invoice.payableUponReceipt || ''
+                ];
+                
+                if (invoice.chargeItems) {
+                    invoice.chargeItems.forEach(item => {
+                        row.push(item.description || '');
+                        row.push(item.amount || '');
+                    });
+                }
+                
+                const chargeItemCount = invoice.chargeItems ? invoice.chargeItems.length : 0;
+                for (let i = chargeItemCount; i < maxChargeItems; i++) {
+                    row.push('');
+                    row.push('');
+                }
+                
+                data.push(row);
+            });
+
+            // Create worksheet with headers and data
+            XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: 'A1' });
+            XLSX.utils.sheet_add_aoa(worksheet, data, { origin: 'A2' });
+
+            // Style headers (Excel doesn't support complex CSS, so we use basic formatting)
+            worksheet['!cols'] = Array(headers.length).fill({ wch: 25 });
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Invoices');
+
+            const fileName = `invoices_${new Date().getTime()}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            showMessage(`Excel file exported as ${fileName}`, 'success');
+            exportBtn.disabled = false;
+        }
+
+        function clearAll() {
+            extractedData = [];
+            maxChargeItems = 0;
+            fileList.innerHTML = '';
+            tableBody.innerHTML = '';
+            dataTable.style.display = 'none';
+            messageDiv.style.display = 'none';
+            exportBtn.disabled = true;
+            clearBtn.disabled = true;
+            fileInput.value = '';
+        }
+    </script>
+</body>
+
+</html>
