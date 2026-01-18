@@ -497,15 +497,29 @@
             }
             data.invoiceDate = dateMatch ? dateMatch[1].trim() : '';
 
-            // Your Reference
-            let refMatch = text.match(/P0O(\d+)/i);
-            if (!refMatch) refMatch = text.match(/PO\s*(?:BOX)?\s*[:\s]*(\d+)/i);
-            if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference|entry\s+no\.?)[:\s]+([^\n]+)/i);
+            // Your Reference - Look for PO numbers in invoice details (not header)
+            let refMatch = null;
+
+            // Pattern 1: Look for "EmyNo." or similar invoice reference pattern
+            refMatch = text.match(/EmyNo\.\s*[-|]?\s*([A-Z0-9]+)/i);
+            if (!refMatch) refMatch = text.match(/Entry\s*No\.?\s*[-|]?\s*([A-Z0-9]+)/i);
+
+            // Pattern 2: Look for PO followed by 4 digits (invoice PO, not address PO BOX)
             if (!refMatch) {
-                // Try to find first number after "PO"
-                let poMatch = text.match(/PO\s+(\d+)/i);
-                if (poMatch) refMatch = poMatch;
+                let allPOs = text.match(/PO\s*(\d{4,})/gi);
+                if (allPOs && allPOs.length > 0) {
+                    // Get the last PO match (usually after the header)
+                    let lastPO = allPOs[allPOs.length - 1];
+                    refMatch = lastPO.match(/PO\s*(\d+)/i);
+                }
             }
+
+            // Pattern 3: OCR error variations (P0O)
+            if (!refMatch) refMatch = text.match(/P0O(\d+)/i);
+
+            // Pattern 4: Generic reference
+            if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference)[:\s]+([^\n]+)/i);
+
             data.yourReference = refMatch ? refMatch[1].trim().slice(0, 50) : '';
 
             // Charge Items - Try multiple patterns
