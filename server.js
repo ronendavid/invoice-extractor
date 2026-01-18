@@ -128,14 +128,19 @@ function parseInvoiceData(text) {
     console.log('===== END TEXT =====\n');
 
     // Try multiple patterns for Invoice Number (handle OCR errors like "roveieNo" instead of "invoiceNo")
-    let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d+)/i);
-    if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]+(\d+)/i);
-    if (!invoiceNoMatch) invoiceNoMatch = text.match(/inv\.?\s*[:\s]*(\d+)/i);
-    if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]+)/i);
+    let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d{4,})/i);
+    if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]+(\d{4,})/i);
+    if (!invoiceNoMatch) invoiceNoMatch = text.match(/inv\.?\s*[:\s]*(\d{4,})/i);
+    if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]{4,})/i);
     // Look for number after "PO BOX" or similar patterns if not found
     if (!invoiceNoMatch) {
-        let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{6,})/i);
+        let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{4,})/i);
         if (numberAfterPattern) invoiceNoMatch = numberAfterPattern;
+    }
+    // Pattern: 5-6 digit numbers that appear with a date (common invoice number format: XXXXXX DATE)
+    if (!invoiceNoMatch) {
+        let candidateNumbers = text.match(/(\d{5,6})\s+\d{1,2}\/\d{1,2}\/\d{2,4}/);
+        if (candidateNumbers) invoiceNoMatch = candidateNumbers;
     }
     data.invoiceNo = invoiceNoMatch ? invoiceNoMatch[1].trim() : '';
 

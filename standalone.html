@@ -511,25 +511,31 @@
             console.log('Raw OCR Text for parsing:', text);
 
             // Invoice Number - Try multiple patterns
-            let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d+)/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]*\|?\s*(\d+)/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/inv\.?\s*[:\s]*(\d+)/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]+)/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s+number[:\s]+(\d+)/i);
+            let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d{4,})/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]*\|?\s*(\d{4,})/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/inv\.?\s*[:\s]*(\d{4,})/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]{4,})/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s+number[:\s]+(\d{4,})/i);
 
             // Pattern: Look for numbers that appear near "invoice" keyword (unlimited length)
             if (!invoiceNoMatch) {
-                let invoiceSection = text.match(/invoice[\s\S]{0,200}(\d+)/i);
+                let invoiceSection = text.match(/invoice[\s\S]{0,200}(\d{4,})/i);
                 if (invoiceSection) invoiceNoMatch = invoiceSection;
             }
 
             // Pattern: Numbers after PO BOX in address (as fallback, unlimited length)
             if (!invoiceNoMatch) {
-                let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d+)/i);
+                let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{4,})/i);
                 if (numberAfterPattern) invoiceNoMatch = numberAfterPattern;
             }
 
-            // Pattern: Large numbers that appear to be invoice numbers (unlimited length)
+            // Pattern: 5-6 digit numbers that appear with a date (common invoice number format: XXXXXX DATE)
+            if (!invoiceNoMatch) {
+                let candidateNumbers = text.match(/(\d{5,6})\s+\d{1,2}\/\d{1,2}\/\d{2,4}/);
+                if (candidateNumbers) invoiceNoMatch = candidateNumbers;
+            }
+
+            // Pattern: Large numbers as last resort (unlimited length)
             if (!invoiceNoMatch) {
                 let largeNumbers = text.match(/(\d{4,})/);
                 if (largeNumbers) invoiceNoMatch = largeNumbers;
