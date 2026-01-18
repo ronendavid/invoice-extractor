@@ -257,7 +257,6 @@
                     <th>File Name</th>
                     <th>Invoice No.</th>
                     <th>Invoice Date</th>
-                    <th>Your Reference</th>
                     <th>Total Amount</th>
                     <th>Due On</th>
                     <th>Payable Upon Receipt</th>
@@ -549,31 +548,6 @@
             }
             data.invoiceDate = dateMatch ? dateMatch[1].trim() : '';
 
-            // Your Reference - Look for PO numbers in invoice details (not header)
-            let refMatch = null;
-
-            // Pattern 1: Look for "EmyNo." or similar invoice reference pattern
-            refMatch = text.match(/EmyNo\.\s*[-|]?\s*([A-Z0-9]+)/i);
-            if (!refMatch) refMatch = text.match(/Entry\s*No\.?\s*[-|]?\s*([A-Z0-9]+)/i);
-
-            // Pattern 2: Look for PO followed by 4 digits (invoice PO, not address PO BOX)
-            if (!refMatch) {
-                let allPOs = text.match(/PO\s*(\d{4,})/gi);
-                if (allPOs && allPOs.length > 0) {
-                    // Get the last PO match (usually after the header)
-                    let lastPO = allPOs[allPOs.length - 1];
-                    refMatch = lastPO.match(/PO\s*(\d+)/i);
-                }
-            }
-
-            // Pattern 3: OCR error variations (P0O)
-            if (!refMatch) refMatch = text.match(/P0O(\d+)/i);
-
-            // Pattern 4: Generic reference
-            if (!refMatch) refMatch = text.match(/(?:your\s+reference|reference)[:\s]+([^\n]+)/i);
-
-            data.yourReference = refMatch ? refMatch[1].trim().slice(0, 50) : '';
-
             // Charge Items - Try multiple patterns
             let chargeItems = [];
 
@@ -701,7 +675,6 @@
                     <td>${invoice.fileName || ''}</td>
                     <td>${invoice.invoiceNo || ''}</td>
                     <td>${invoice.invoiceDate || ''}</td>
-                    <td>${invoice.yourReference || ''}</td>
                     <td>${invoice.amount || ''}</td>
                     <td>${invoice.dueOn || ''}</td>
                     <td>${invoice.payableUponReceipt || ''}</td>
@@ -734,7 +707,7 @@
             const worksheet = XLSX.utils.json_to_sheet([]);
 
             // Build headers
-            const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Your Reference', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
+            const headers = ['File Name', 'Invoice No.', 'Invoice Date', 'Total Amount', 'Due On', 'Payable Upon Receipt'];
             for (let i = 0; i < maxChargeItems; i++) {
                 headers.push(`Charge ${i + 1} Description`);
                 headers.push(`Charge ${i + 1} Amount`);
@@ -747,7 +720,6 @@
                     invoice.fileName || '',
                     invoice.invoiceNo || '',
                     invoice.invoiceDate || '',
-                    invoice.yourReference || '',
                     invoice.amount || '',
                     invoice.dueOn || '',
                     invoice.payableUponReceipt || ''
