@@ -476,16 +476,33 @@
             // Debug: log raw OCR text
             console.log('Raw OCR Text for parsing:', text);
 
-            // Invoice Number
+            // Invoice Number - Try multiple patterns
             let invoiceNoMatch = text.match(/[ri]o[vi]ei[ce]No\.\s*\|\s*(\d+)/i);
-            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]+(\d+)/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s*(?:no\.?|number|#)[:\s]*\|?\s*(\d+)/i);
             if (!invoiceNoMatch) invoiceNoMatch = text.match(/inv\.?\s*[:\s]*(\d+)/i);
             if (!invoiceNoMatch) invoiceNoMatch = text.match(/חשבונית\s*[#:]?\s*([0-9\-]+)/i);
+            if (!invoiceNoMatch) invoiceNoMatch = text.match(/invoice\s+number[:\s]+(\d+)/i);
+
+            // Pattern: Look for 6-8 digit numbers that appear near "invoice" keyword
+            if (!invoiceNoMatch) {
+                let invoiceSection = text.match(/invoice[\s\S]{0,200}(\d{6,8})/i);
+                if (invoiceSection) invoiceNoMatch = invoiceSection;
+            }
+
+            // Pattern: Numbers after PO BOX in address (as fallback)
             if (!invoiceNoMatch) {
                 let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{6,})/i);
                 if (numberAfterPattern) invoiceNoMatch = numberAfterPattern;
             }
+
+            // Pattern: Large numbers that appear to be invoice numbers (6+ digits)
+            if (!invoiceNoMatch) {
+                let largeNumbers = text.match(/(\d{6,8})/);
+                if (largeNumbers) invoiceNoMatch = largeNumbers;
+            }
+
             data.invoiceNo = invoiceNoMatch ? invoiceNoMatch[1].trim() : '';
+            console.log('Invoice No extracted:', data.invoiceNo);
 
             // Invoice Date
             let dateMatch = text.match(/invoiceDate\s*\|\s*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4})/i);
