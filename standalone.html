@@ -276,6 +276,9 @@
         // Configure PDF.js worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+        // Configure Tesseract
+        Tesseract.setLogging(true);
+
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
         const dataTable = document.getElementById('dataTable');
@@ -286,6 +289,8 @@
 
         let extractedData = [];
         let maxChargeItems = 0;
+        let tesseractWorker = null;
+        let workerReady = false;
 
         // Event listeners
         fileInput.addEventListener('change', handleFileSelect);
@@ -410,22 +415,35 @@
 
         async function ocrImage(imageData) {
             console.log('Starting OCR...');
-            let worker;
+
             try {
-                worker = await Tesseract.createWorker(['eng', 'heb']);
-                const result = await worker.recognize(imageData);
+                // Initialize worker if not already done
+                if (!tesseractWorker) {
+                    console.log('Initializing Tesseract worker...');
+                    showMessage('Initializing OCR engine (this may take a minute on first use)...', 'info');
+                    tesseractWorker = await Tesseract.createWorker(['eng', 'heb']);
+                    workerReady = true;
+                    console.log('Tesseract worker ready');
+                }
+
+                console.log('Recognizing image...');
+                const result = await tesseractWorker.recognize(imageData);
+                console.log('OCR completed, confidence:', result.data.confidence);
+
                 return result.data.text || '';
             } catch (error) {
                 console.error('OCR error:', error);
-                throw new Error('Failed to perform OCR: ' + (error.message || 'Unknown error'));
-            } finally {
-                if (worker) {
+                // Reset worker on error
+                if (tesseractWorker) {
                     try {
-                        await worker.terminate();
+                        await tesseractWorker.terminate();
                     } catch (e) {
                         console.error('Error terminating worker:', e);
                     }
+                    tesseractWorker = null;
+                    workerReady = false;
                 }
+                throw new Error('OCR processing failed. Please try again. ' + (error.message || ''));
             }
         }
 
@@ -629,6 +647,13 @@
             exportBtn.disabled = true;
             clearBtn.disabled = true;
             fileInput.value = '';
+
+            // Clean up Tesseract worker
+            if (tesseractWorker) {
+                tesseractWorker.terminate().catch(e => console.error('Error cleaning up:', e));
+                tesseractWorker = null;
+                workerReady = false;
+            }
         }
     </script>
 </body>
