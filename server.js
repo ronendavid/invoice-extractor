@@ -137,10 +137,17 @@ function parseInvoiceData(text) {
         let numberAfterPattern = text.match(/(?:P\.?O\.?\s+)?BOX\s+\d+\s+(\d{4,})/i);
         if (numberAfterPattern) invoiceNoMatch = numberAfterPattern;
     }
-    // Pattern: 5-6 digit numbers that appear with a date (common invoice number format: XXXXXX DATE)
+    // Pattern: 5-6 digit numbers that appear BEFORE a date (common invoice number format: XXXXXX DATE)
+    // This should come before any generic patterns to avoid matching dates
     if (!invoiceNoMatch) {
         let candidateNumbers = text.match(/(\d{5,6})\s+\d{1,2}\/\d{1,2}\/\d{2,4}/);
         if (candidateNumbers) invoiceNoMatch = candidateNumbers;
+    }
+    
+    // Pattern: 5+ digit numbers as last resort (avoid matching 4-digit years)
+    if (!invoiceNoMatch) {
+        let largeNumbers = text.match(/(\d{5,})/);
+        if (largeNumbers) invoiceNoMatch = largeNumbers;
     }
     data.invoiceNo = invoiceNoMatch ? invoiceNoMatch[1].trim() : '';
 
