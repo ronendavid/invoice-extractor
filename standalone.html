@@ -534,10 +534,11 @@
 
             if (!invoiceNoMatch) {
                 // Find all matches of 5+ digits followed by a date
-                let allMatches = [...text.matchAll(/(\d{5,})\s+\d{1,2}\/\d{1,2}\/\d{2,4}/g)];
-                if (allMatches.length > 0) {
-                    // Prefer the first match (most likely the invoice number)
-                    invoiceNoMatch = allMatches[0];
+                let allMatches = [...text.matchAll(/(\d{5,})\s+\d{1,2}\/\d{1,2}\/\d{4}/g)];
+                // Filter out matches where the number is a year (e.g. 2026)
+                let filtered = allMatches.filter(m => m[1] && !/^20\d{2}$/.test(m[1]));
+                if (filtered.length > 0) {
+                    invoiceNoMatch = filtered[0];
                 }
             }
 
