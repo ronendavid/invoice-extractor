@@ -413,7 +413,7 @@
             }
         }
 
-        async function ocrImage(imageData) {
+        async function ocrImage(imageDataUrl) {
             console.log('Starting OCR...');
 
             try {
@@ -421,13 +421,36 @@
                 if (!tesseractWorker) {
                     console.log('Initializing Tesseract worker...');
                     showMessage('Initializing OCR engine (this may take a minute on first use)...', 'info');
-                    tesseractWorker = await Tesseract.createWorker(['eng', 'heb']);
-                    workerReady = true;
-                    console.log('Tesseract worker ready');
+                    
+                    try {
+                        tesseractWorker = await Tesseract.createWorker({
+                            logger: m => console.log('Tesseract:', m)
+                        });
+                        // Load languages
+                        await tesseractWorker.loadLanguage('eng');
+                        await tesseractWorker.loadLanguage('heb');
+                        await tesseractWorker.initialize('eng+heb');
+                        
+                        workerReady = true;
+                        console.log('Tesseract worker ready');
+                    } catch (initError) {
+                        console.error('Worker initialization failed:', initError);
+                        tesseractWorker = null;
+                        workerReady = false;
+                        throw new Error('Failed to initialize OCR: ' + initError.message);
+                    }
                 }
 
                 console.log('Recognizing image...');
-                const result = await tesseractWorker.recognize(imageData);
+                
+                // Create an image object to ensure proper loading
+                const img = new Image();
+                img.onload = async () => {
+                    console.log('Image loaded, starting recognition...');
+                };
+                img.src = imageDataUrl;
+                
+                const result = await tesseractWorker.recognize(imageDataUrl);
                 console.log('OCR completed, confidence:', result.data.confidence);
 
                 return result.data.text || '';
